@@ -18,7 +18,7 @@ def parse_qualities(output):
         if re.search(r'^\d+\s+mp4', line):
             parts = line.split()
             fmt_id = parts[0]
-            quality = parts[2] + ' - ' +parts[3] + 'fps'
+            quality = parts[2] + ' - ' +parts[3] + 'FPS'
             video_qualities[fmt_id] = quality
         elif re.search(r'^\d+\s+m4a', line):
             parts = line.split()
