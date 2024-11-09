@@ -3,6 +3,7 @@ import subprocess
 import re
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+from threading import Thread
 
 def get_video_qualities(link):
     """ Get available video and audio qualities for the given link. """
@@ -31,25 +32,48 @@ def parse_qualities(output):
     return video_qualities, audio_qualities
 
 def download_video(link, folder, video_quality_key, filename):
-    """ Download video with selected quality and filename """
-    output = get_video_qualities(link)
-    video_qualities, audio_qualities = parse_qualities(output)
-    
-    best_audio_quality = max(audio_qualities.keys(), key=lambda k: int(k))
-
-    print('\nVideo Quality Key:', video_quality_key)
-
-    # Construct the command with a custom output filename
-    command = f"yt-dlp -f {video_quality_key}+{best_audio_quality} -o \"{folder}/{filename}.%(ext)s\" {link}"
-    print('\nCommand:', command)
-    print("Download Started...")
+    """ Download video with selected quality and filename and show progress. """
     try:
-        os.system(command)
-        print(f"Downloaded in {folder}")
-        messagebox.showinfo("Success", f"Downloaded in {folder}")
+        download_button.config(state=tk.DISABLED)  # Disable the download button
+
+        output = get_video_qualities(link)
+        video_qualities, audio_qualities = parse_qualities(output)
+        best_audio_quality = max(audio_qualities.keys(), key=lambda k: int(k))
+
+        command = f"yt-dlp -f {video_quality_key}+{best_audio_quality} -o \"{folder}/{filename}.%(ext)s\" {link}"
+
+        process = subprocess.Popen(
+            command,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True
+        )
+
+        for line in iter(process.stdout.readline, ''):
+            if '[download]' in line:
+                match = re.search(r'(\d+\.\d+%)\s+of\s+.*?ETA\s+(.*)', line)
+                if match:
+                    percentage = match.group(1)
+                    eta = match.group(2)
+                    progress_label.config(text=f"Progress: {percentage} - ETA: {eta}")
+                    app.update()
+
+        process.stdout.close()
+        process.wait()
+
+        if process.returncode == 0:
+            messagebox.showinfo("Success", f"Downloaded in {folder}")
+        else:
+            messagebox.showerror("Error", "Download failed")
     except Exception as e:
-        print(f"Error during download: {e}")
         messagebox.showerror("Error", f"Error during download: {e}")
+    finally:
+        download_button.config(state=tk.NORMAL)  # Re-enable the download button
+
+def start_download_thread():
+    thread = Thread(target=start_download)
+    thread.start()
 
 def start_download():
     link = link_entry.get()
@@ -109,8 +133,11 @@ video_quality_var = tk.StringVar()
 quality_menu = ttk.Combobox(app, textvariable=video_quality_var, width=50)
 quality_menu.pack(pady=5)
 
-download_button = tk.Button(app, text="Download", command=start_download)
+download_button = tk.Button(app, text="Download", command=start_download_thread)
 download_button.pack(pady=20)
+
+progress_label = tk.Label(app, text="Progress: Not started")
+progress_label.pack(pady=5)
 
 selected_folder = ""
 
