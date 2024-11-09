@@ -31,7 +31,7 @@ def parse_qualities(output):
     return video_qualities, audio_qualities
 
 def download_video(link, folder, video_quality_key, filename):
-    """ Download video with selected quality and custom filename """
+    """ Download video with selected quality and filename """
     output = get_video_qualities(link)
     video_qualities, audio_qualities = parse_qualities(output)
     
